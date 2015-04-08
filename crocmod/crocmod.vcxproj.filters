@@ -1,0 +1,19 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="crocmod.cpp" />
+    <ClCompile Include="mod.cpp">
+      <Filter>Croc</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Croc">
+      <UniqueIdentifier>{40dd8d58-8afe-407d-b7a9-716f76ff9bd8}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="mod.h">
+      <Filter>Croc</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>
