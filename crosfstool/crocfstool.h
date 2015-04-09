@@ -17,14 +17,20 @@
 // along with this program; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110 - 1301, USA.
 
+#ifndef CROCFSTOOL_H
+#define CROCFSTOOL_H_
+
 #define _CRT_SECURE_NO_WARNINGS
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdbool.h>
+#include <string.h>
+#include <assert.h>
 #include <direct.h>
+#include "msg.h"
 #define MAX_PATH 260
 
-enum MSGERRORTYPE
+enum Result
 {
 	NOERRORS		=  0,
 	FILENOTFOUND	= -1,
@@ -33,20 +39,20 @@ enum MSGERRORTYPE
 	MEMORYPROTECTION= -254,
 	GENERALERROR	= -255
 };
-enum ENDIAN
+enum Endian
 {
 	ENOTSET = 0,
 	ELITTLE = 1,
 	EBIG	= 2
 };
-enum OPENFILETYPE
+enum OpenType
 {
 	OPENFILEREAD		= 1,
 	OPENFILEREADWRITE	= 2,
 	OPENFILECREATE		= 3,
 	OPENFILECREATEREAD	= 4
 };
-struct CROCFILE
+struct CrocFsEntry
 {
 	char name[0x0C];
 	unsigned int size;
@@ -54,8 +60,12 @@ struct CROCFILE
 	unsigned int dummy;
 };
 
-bool OpenFile(char *filename, FILE **f, OPENFILETYPE type);
-int GetFileSize(FILE *f);
-void EndianSwap(unsigned int *v);
-MSGERRORTYPE CrocUnpack(char *dir, char *fs, char *outputpath, char *list, ENDIAN endian, bool verbose);
-MSGERRORTYPE CrocPack(char *dir, char *fs, char *outputpath, char *list, ENDIAN endian, bool align, bool verbose);
+#define EndianSwap(x) ((x >> 24) | ((x << 8) & 0x00FF0000) | ((x >> 8) & 0x0000FF00) | (x << 24))
+
+bool OpenFile(FILE **f, const char *filename, enum OpenType type);
+size_t GetFileSize(FILE *f);
+void FileCopy(FILE *dst, FILE *src, size_t length);
+enum Result CrocUnpack(const char *dir, const char *fs, const char *outputpath, const char *list, enum Endian Endian);
+enum Result CrocPack(const char *dir, const char *fs, const char *outputpath, const char *list, enum Endian Endian, bool align);
+
+#endif

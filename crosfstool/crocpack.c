@@ -1,5 +1,5 @@
 //////////////////////////////////////////////////////////////////////////
-// crocpack.cpp
+// crocpack.c
 // Part of https://github.com/Xeeynamo/Croc
 // Copyright(C) 2014  Luciano Ciccariello (Xeeynamo)
 // 
@@ -19,68 +19,75 @@
 
 #include "crocfstool.h"
 
-MSGERRORTYPE CrocPack(char *dirname, char *fsname, char *outputpath, char *list, ENDIAN endian, bool align, bool verbose)
+enum Result CrocPack(const char *dirname, const char *fsname, const char *outputpath, const char *list, enum ENDIAN endian, bool align)
 {
 	FILE *fDir, *fArc, *fList;
-	if (!OpenFile(dirname,	&fDir, OPENFILECREATE)) return FILENOTCREATED;
-	if (!OpenFile(fsname,	&fArc, OPENFILECREATE)) return FILENOTCREATED;
-	if (!OpenFile(list,		&fList, OPENFILEREAD)) return FILENOTFOUND;
+	if (!OpenFile(&fDir, dirname, OPENFILECREATE))
+		return FILENOTCREATED;
+	if (!OpenFile(&fArc, fsname, OPENFILECREATE))
+		return FILENOTCREATED;
+	if (!OpenFile(&fList, list, OPENFILEREAD))
+		return FILENOTFOUND;
+
+	if (endian == ENOTSET)
+	{
+		msgPrint(MsgLv_Warning, "Endian not specified.\n");
+		msgPrint(MsgLv_Info, "Endian set to %s.\n", "LITTLE (PS1 ver.)");
+		endian = ELITTLE;
+	}
+
 
 	unsigned int entries = 0;
 	fseek(fDir, 4, SEEK_SET);
 	unsigned int pos = 0;
 	char name[0x0D];
 	char path[MAX_PATH];
-	CROCFILE crocfile;
+	struct CrocFsEntry CrocFsEntry;
 	while(fscanf(fList, "%s", name) != EOF)
 	{
-		sprintf(path, "%s\\%s", outputpath, name);
-		if (verbose) printf("Writing %s... ", name);
-		FILE *f = fopen(path, "rb");
-		if (!f)
-		{
-			if (verbose) printf("ERROR!");
-			else printf("Unable to %s %s", "open", path);
-			return GENERALERROR;
-		}
 		int i;
-		for(i=0; i<0xC; i++)
-			if (name[i])
-				crocfile.name[i] = name[i];
-			else
-				break;
-		for(; i<0xC; i++)
-			crocfile.name[i] = 0;
-		crocfile.size = GetFileSize(f);
-		crocfile.pos = pos;
-		crocfile.dummy = 0;
+		FILE *f;
 
-		void *data = malloc(crocfile.size);
-		fread(data, 1, crocfile.size, f);
+		sprintf(path, "%s\\%s", outputpath, name);
+		msgPrint(MsgLv_Message, "Packing %s\n", name);
+		if (!OpenFile(&f, name, OPENFILECREATE))
+			return FILENOTCREATED;
+
+		for (i = 0; i < 0xC && name[i] != '\0'; i++)
+			CrocFsEntry.name[i] = name[i];
+		for(; i < 0xC; i++)
+			CrocFsEntry.name[i] = 0;
+		CrocFsEntry.size = GetFileSize(f);
+		CrocFsEntry.pos = pos;
+		CrocFsEntry.dummy = 0;
+
+		void *data = malloc(CrocFsEntry.size);
+		fread(data, 1, CrocFsEntry.size, f);
 		fclose(f);
-		fwrite(data, 1, crocfile.size, fArc);
+		fwrite(data, 1, CrocFsEntry.size, fArc);
 		free(data);
-		if (verbose) printf("OK!\n");
 
 		if (align)
 		{
-			pos += (crocfile.size & 0x7FF) != 0 ? crocfile.size + (0x800 - (crocfile.size%0x800)) : crocfile.size;
+			pos += (CrocFsEntry.size & 0x7FF) != 0 ? CrocFsEntry.size + (0x800 - (CrocFsEntry.size%0x800)) : CrocFsEntry.size;
 			fseek(fArc, pos, SEEK_SET);
 		}
-		else pos += crocfile.size;
+		else
+			pos += CrocFsEntry.size;
 
 		if (endian == EBIG)
 		{
-			EndianSwap(&crocfile.size);
-			EndianSwap(&crocfile.pos);
+			CrocFsEntry.size = EndianSwap(CrocFsEntry.size);
+			CrocFsEntry.size = EndianSwap(CrocFsEntry.pos);
 		}
-		fwrite(&crocfile, 1, sizeof(CROCFILE), fDir);
+		fwrite(&CrocFsEntry, 1, sizeof(struct CrocFsEntry), fDir);
 		entries++;
 	}
 	unsigned int unknowvalue = 0;
 	fclose(fList);
 	fclose(fArc);
-	if (endian == EBIG) EndianSwap(&entries);
+	if (endian == EBIG)
+		entries = EndianSwap(entries);
 	fwrite(&unknowvalue, 1, sizeof(unknowvalue), fDir);
 	fseek(fDir, 0, SEEK_SET);
 	fwrite(&entries, 1, sizeof(entries), fDir);
